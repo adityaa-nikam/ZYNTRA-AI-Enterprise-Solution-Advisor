@@ -1,0 +1,16 @@
+{
+  "short_name": "Zyntra AI",
+  "name": "ZYNTRA AI — Enterprise Intelligence. Engineered.",
+  "description": "From Business Problems to AI Solutions.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "display": "standalone"
+}
