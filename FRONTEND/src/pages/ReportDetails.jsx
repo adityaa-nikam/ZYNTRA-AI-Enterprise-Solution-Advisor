@@ -177,7 +177,8 @@ function ReportDetails() {
       addSectionTitle("4. Retrieved Knowledge Sources", [37, 99, 235]);
       sourcesUsed.forEach((src, i) => {
         checkPageBreak(12); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(15, 23, 42);
-        pdf.text(`Source ${i + 1}: ${src.title}  [${Math.round((src.score || 0.88) * 100)}% Match]`, margin, y); y += 5;
+        const pdfMatchPct = src.similarityPercentage || Math.round((src.hybridScore || src.rawScore || 0) * 100);
+        pdf.text(`Source ${i + 1}: ${src.title}  [${pdfMatchPct}% Match]`, margin, y); y += 5;
         addParagraph(`File: ${src.source}  |  Industry: ${src.industry || "Enterprise"}`, 9);
       });
     }
@@ -401,7 +402,7 @@ function ReportDetails() {
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <ChartCard badge="Strategic Matrix" badgeColor="blue" title="Impact vs. Effort">
             <ResponsiveContainer width="100%" height={240}>
-              <ScatterChart margin={{ top: 15, right: 15, bottom: 15, left: -10 }}>
+              <ScatterChart margin={{ top: 35, right: 15, bottom: 15, left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                 <XAxis type="number" dataKey="effort" domain={[0, 10]} stroke="#94A3B8" fontSize={11} tick={{ fill: "#64748B" }} label={{ value: "Effort →", position: "insideBottomRight", offset: -5, style: { fontSize: 10, fill: "#94A3B8" } }} />
                 <YAxis type="number" dataKey="impact" domain={[0, 10]} stroke="#94A3B8" fontSize={11} tick={{ fill: "#64748B" }} label={{ value: "Impact ↑", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "#94A3B8" } }} />
@@ -412,7 +413,7 @@ function ReportDetails() {
                   <div className="tooltip-content"><p className="font-semibold">{payload[0].payload.name}</p><p>Impact: {payload[0].payload.impact}/10 · Effort: {payload[0].payload.effort}/10</p></div>
                 ) : null} />
                 <Scatter name="Recs" data={recommendationsData} fill="#2563EB" fillOpacity={0.85}>
-                  <LabelList dataKey="name" position="top" style={{ fontSize: "9px", fill: "#475569", fontWeight: 600 }} />
+                  <LabelList dataKey="name" content={<CollisionAwareLabelRenderer data={recommendationsData} />} />
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
@@ -454,13 +455,21 @@ function ReportDetails() {
             <p className="text-[15px] text-[#334155] leading-[1.8] bg-[#F8FAFC] p-5 rounded-xl border border-[#E2E8F0]">
               {analysis.executiveSummary}
             </p>
-            {analysis.confidenceScore && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="badge badge-green">
-                  <CheckCircle size={10} /> ZYNTRA Confidence: {analysis.confidenceScore}%
-                </span>
-              </div>
-            )}
+            {sourcesUsed?.length > 0 && (() => {
+              const avgRelevance = Math.round(
+                sourcesUsed.reduce((sum, s) => sum + (s.similarityPercentage || Math.round((s.hybridScore || s.rawScore || 0) * 100)), 0) / sourcesUsed.length
+              );
+              return (
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="badge badge-green">
+                    <CheckCircle size={10} /> Avg. Source Relevance: {avgRelevance}%
+                  </span>
+                  <span className="text-[11px] text-[#94A3B8]">
+                    Based on {sourcesUsed.length} retrieved knowledge sources
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Knowledge Sources */}
@@ -654,6 +663,66 @@ function ReportDetails() {
 }
 
 /* ── Sub-components ──────────────────────────────────────────────────────────── */
+
+/**
+ * Collision-aware custom label renderer for Recharts ScatterChart.
+ * Detects when multiple data points are close together in pixel space
+ * and staggers their labels vertically with thin connector lines.
+ */
+function CollisionAwareLabelRenderer({ data, x, y, value, index }) {
+  if (x == null || y == null || !value) return null;
+
+  // Calculate pixel-approximate positions for all points to detect clusters.
+  // Since Recharts calls this per-point, we use the current point's data + full dataset.
+  const currentPoint = data?.[index];
+  if (!currentPoint) return null;
+
+  // Determine vertical offset by checking how many prior points in the dataset
+  // have similar coordinates (within a threshold)
+  const PROXIMITY_THRESHOLD = 1.2; // data-unit proximity (impact/effort on 0-10 scale)
+  let offsetIndex = 0;
+  for (let i = 0; i < index; i++) {
+    const other = data[i];
+    const dx = Math.abs((currentPoint.effort ?? 0) - (other.effort ?? 0));
+    const dy = Math.abs((currentPoint.impact ?? 0) - (other.impact ?? 0));
+    if (dx < PROXIMITY_THRESHOLD && dy < PROXIMITY_THRESHOLD) {
+      offsetIndex++;
+    }
+  }
+
+  const BASE_OFFSET = -12;        // default label offset above point
+  const STAGGER_STEP = -11;       // additional vertical step per collision
+  const yOffset = BASE_OFFSET + (offsetIndex * STAGGER_STEP);
+  const labelY = y + yOffset;
+
+  // Truncate long labels
+  const displayName = value.length > 20 ? value.substring(0, 18) + "…" : value;
+
+  return (
+    <g>
+      {/* Connector line from label to data point (only if staggered) */}
+      {offsetIndex > 0 && (
+        <line
+          x1={x}
+          y1={y - 5}
+          x2={x}
+          y2={labelY + 4}
+          stroke="#94A3B8"
+          strokeWidth={0.7}
+          strokeDasharray="2 2"
+        />
+      )}
+      <text
+        x={x}
+        y={labelY}
+        textAnchor="middle"
+        style={{ fontSize: "9px", fill: "#475569", fontWeight: 600 }}
+      >
+        {displayName}
+      </text>
+    </g>
+  );
+}
 
 function Building2Icon() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" /></svg>;

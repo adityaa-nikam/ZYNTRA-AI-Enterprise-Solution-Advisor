@@ -66,7 +66,7 @@ function KnowledgeSourcesSection({ sources = [] }) {
 }
 
 function SourceCard({ src, index, devMode, expanded, onToggle }) {
-  const similarityPct  = src.similarityPercentage || Math.round((src.score || src.rawScore || 0.85) * 100);
+  const similarityPct  = src.similarityPercentage || Math.round((src.hybridScore || src.rawScore || 0) * 100);
   const finalScore     = src.finalScore ? Number(src.finalScore).toFixed(3) : null;
   const industry       = src.industry || "Enterprise";
   const category       = src.category || "General Consulting";
