@@ -23,10 +23,19 @@ connectDB();
 app.use(
   cors({
     origin: function (origin, callback) {
-      const allowedOrigin = process.env.FRONTEND_URL 
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000'
+      ];
+      
+      const envOrigin = process.env.FRONTEND_URL 
         ? process.env.FRONTEND_URL.replace(/\/$/, '') 
-        : '*';
-      if (!origin || origin === allowedOrigin) {
+        : null;
+        
+      if (envOrigin) allowedOrigins.push(envOrigin);
+
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
