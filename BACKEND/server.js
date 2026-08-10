@@ -42,5 +42,5 @@ app.use("/", analysisRoutes);
 app.use("/reports", reportRoutes);
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT} AND FRONTEND_URL is ${process.env.FRONTEND_URL}`);
 });
