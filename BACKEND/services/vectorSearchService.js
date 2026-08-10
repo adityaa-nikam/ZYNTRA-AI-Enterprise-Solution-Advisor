@@ -18,6 +18,7 @@ const { generateEmbedding, generateEmbeddingsBatch } = require("../scripts/embed
 // ─── In-Memory Document Cache (5-minute TTL) for Instant Fallback ────────────
 let docCache = null;
 let docCacheTimestamp = 0;
+let cachePromise = null;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function getCachedKnowledgeDocs() {
@@ -25,20 +26,30 @@ async function getCachedKnowledgeDocs() {
   if (docCache && (now - docCacheTimestamp) < CACHE_TTL_MS) {
     return docCache;
   }
-  try {
-    const docs = await KnowledgeDoc.find({})
-      .select("_id documentId chunkNumber title industry department subcategory category businessProcess source summary excerpt content keywords technologies tokenCount embeddingModel embedding")
-      .lean();
-    if (docs && docs.length > 0) {
-      docCache = docs;
-      docCacheTimestamp = now;
-      console.log(`📦 [DocCache] Cached ${docs.length} knowledge base documents in Node.js memory.`);
-    }
-    return docCache || docs;
-  } catch (err) {
-    console.warn("[DocCache] Failed to fetch candidate docs:", err.message);
-    return docCache || [];
+  if (cachePromise) {
+    return cachePromise;
   }
+
+  cachePromise = (async () => {
+    try {
+      const docs = await KnowledgeDoc.find({})
+        .select("_id documentId chunkNumber title industry department subcategory category businessProcess source summary excerpt content keywords technologies tokenCount embeddingModel embedding")
+        .lean();
+      if (docs && docs.length > 0) {
+        docCache = docs;
+        docCacheTimestamp = Date.now();
+        console.log(`📦 [DocCache] Cached ${docs.length} knowledge base documents in Node.js memory.`);
+      }
+      return docCache || docs;
+    } catch (err) {
+      console.warn("[DocCache] Failed to fetch candidate docs:", err.message);
+      return docCache || [];
+    } finally {
+      cachePromise = null;
+    }
+  })();
+
+  return cachePromise;
 }
 
 // Time-bounded $vectorSearch wrapper (rejects after 1200ms if Atlas hangs)
