@@ -22,7 +22,16 @@ connectDB();
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: function (origin, callback) {
+      const allowedOrigin = process.env.FRONTEND_URL 
+        ? process.env.FRONTEND_URL.replace(/\/$/, '') 
+        : '*';
+      if (!origin || origin === allowedOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );
