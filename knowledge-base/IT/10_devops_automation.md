@@ -88,5 +88,5 @@ Includes structured staff retraining programs, transitioning operational teams f
 - Improved workforce satisfaction through the elimination of tedious manual tasks.
 
 ## References
-- Enterprise AI Consulting Framework (McKinsey / Deloitte Benchmarks)
+- Synthetic industry benchmark dataset (internally generated for this project, not sourced from third-party research).
 - Published Case Studies in Information Technology & Software Services Transformation (LLM Code Parser Implementations)
